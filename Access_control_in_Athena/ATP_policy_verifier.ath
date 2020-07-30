@@ -1,0 +1,120 @@
+#declaring domains doctors and patients
+domain Patient
+domain Doctor
+
+declare patient1,patient2 : Patient
+declare doc1,doc2,doc3 : Doctor
+
+
+#we have 2 departments,Department1 and Department2
+#we give input of a worker and it returns if worker in that Department
+declare in_Dep1 : [Doctor] -> Boolean
+declare in_Dep2 : [Doctor] -> Boolean
+
+(define single_dep1
+(forall ?x (if ( = (in_Dep1 ?x) true ) (= (in_Dep2 ?x) false) )
+)
+)
+
+(define single_dep2
+(forall ?x (if ( = (in_Dep2 ?x) true ) (= (in_Dep1 ?x) false) )
+)
+)
+
+
+#defining the departments for doctors and the department constraints
+(define L [(= (in_Dep1 doc1) true)
+           (=(in_Dep1 doc3) true)
+           (= (in_Dep2 doc2) true)
+           single_dep1 single_dep2 ])
+
+################Need to assert above L ###############################################
+
+
+#defining doctor of relation where take input of patient and gives output of the doctor
+declare doctor_of : [Patient] -> Doctor
+
+(define doc_list [(= (doctor_of patient1) doc1)
+                  (= (doctor_of patient2) doc2)])
+
+
+################Need to assert above doc_list ###############################################
+
+
+#can_access takes input of patient and doctor and gives out if that doctor can see that record
+declare can_access : [Patient Doctor]-> Boolean
+
+#LIST OF WHO CAN ACCESS
+(define can_access_list [ (= (can_access patient1 doc1) true)
+                          (= (can_access patient1 doc2) false)
+                          (= (can_access patient2 doc1) false)
+                          (= (can_access patient2 doc2) true) ])
+
+################Need to assert above can_access_list ###############################################
+
+
+#reports :if argmnt 1 reports to argmnt2
+declare reports : [Doctor Doctor] -> Boolean
+
+#LIST OF WHO REPORTS TO WHOM
+#TRANSITIVE LEADS TO BREAKING POLICY
+(define reports_list [ (= (reports doc1 doc3) true) (= (reports doc3 doc2) true) ])
+
+#IF NO TRANSITIVE THEN NO PROOF
+#(define reports_list [ (= (reports doc1 doc3) true) ])
+
+################Need to assert above reports_list ###############################################
+
+#properties of reports
+
+#reports is transitive
+(define reports_is_transitive
+(forall ?x ?y ?z
+(if (and (reports ?x ?y)
+(reports ?y ?z))
+(reports ?x ?z))))
+
+#reports is asymmetric
+(define reports_is_asymmetric
+(forall ?x ?y (if (reports ?x ?y)
+(not (reports ?y ?x)))))
+
+#condition that if w1 reports to w2 : if can_access(x,w1) then can_access(x,w2)
+(define view_from_reports
+(forall ?x ?y (
+if (reports ?x ?y) (forall ?z (if (can_access ?z ?x) (can_access ?z ?y) ) ) )
+)
+)
+
+(define prop_of_reports [reports_is_asymmetric reports_is_transitive view_from_reports ])
+
+########################Need to assert above prop_of_reports###########################
+
+
+#The PATIENT PRIVACY PROPERTY
+
+#(define patient_violation1
+#(exists ?y ?z ?h (and (in_Dep1 ?y) (in_Dep2 ?z) (reports ?y ?z) (= (doctor_of ?h) ?y ) (can_access ?h ?z ) ))
+#)
+
+#(define patient_violation2
+#(exists ?y ?z ?h (and (in_Dep2 ?y) (in_Dep1 ?z) (reports ?y ?z) (= (doctor_of ?h) ?y ) (can_access ?h ?z ) ))
+#)
+
+(define patient_violation
+(
+exists ?y ?z ?h (
+or (and (in_Dep1 ?y) (in_Dep2 ?z) (reports ?y ?z) (= (doctor_of ?h) ?y ) (can_access ?h ?z ))
+(and (in_Dep2 ?y) (in_Dep1 ?z) (reports ?y ?z) (= (doctor_of ?h) ?y ) (can_access ?h ?z ))
+)
+)
+)
+
+#################GOING TO ASSERT EVERYTHING#############################################
+(assert L)
+(assert doc_list)
+(assert can_access_list)
+(assert reports_list)
+(assert prop_of_reports)
+
+(!prove patient_violation [L doc_list can_access_list reports_list prop_of_reports])
